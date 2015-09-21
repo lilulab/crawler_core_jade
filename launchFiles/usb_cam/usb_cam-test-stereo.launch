@@ -1,0 +1,37 @@
+<launch>
+
+  <arg name="ns" default="/stereo" />
+
+  <group ns="$(arg ns)">
+    <node name="left" pkg="usb_cam" type="usb_cam_node" output="screen" >
+      <param name="video_device" value="/dev/video1" />
+      <param name="image_width" value="640" />
+      <param name="image_height" value="480" />
+      <param name="pixel_format" value="yuyv" />
+      <param name="framerate" value="10" />
+      <param name="camera_frame_id" value="$(arg ns)/left" />
+      <param name="io_method" value="mmap"/>
+    </node>
+
+    <node name="right" pkg="usb_cam" type="usb_cam_node" output="screen" >
+      <param name="video_device" value="/dev/video0" />
+      <param name="image_width" value="640" />
+      <param name="image_height" value="480" />
+      <param name="pixel_format" value="yuyv" />
+      <param name="framerate" value="10" />
+      <param name="camera_frame_id" value="$(arg ns)/right" />
+      <param name="io_method" value="mmap"/>
+    </node>
+  </group>
+
+  <node name="image_view_stereo_left" pkg="image_view" type="image_view" respawn="false" output="screen">
+    <remap from="image" to="$(arg ns)/left/image_raw"/>
+    <param name="autosize" value="true" />
+  </node>
+
+  <node name="image_view_stereo_right" pkg="image_view" type="image_view" respawn="false" output="screen">
+    <remap from="image" to="$(arg ns)/right/image_raw"/>
+    <param name="autosize" value="true" />
+  </node>
+
+</launch>

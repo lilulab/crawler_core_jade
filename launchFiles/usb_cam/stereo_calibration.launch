@@ -1,0 +1,14 @@
+<launch>
+    <arg name="size" default="8x6" />
+    <arg name="square" default="0.108" />
+    <arg name="approximate" default="0.1" />
+
+    <node pkg="camera_calibration" type="cameracalibrator.py" name="stereo_calibration"
+                    ns="stereo" args="--size $(arg size) --square $(arg square) --approximate=$(arg approximate)"
+                    output="screen" required="true">
+            <remap from="left" to="left/image_raw" />
+            <remap from="right" to="right/image_raw" />
+            <remap from="left_camera" to="left" />
+            <remap from="right_camera" to="right" />
+    </node>
+</launch>
