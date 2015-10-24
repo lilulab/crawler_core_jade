@@ -1,0 +1,3 @@
+
+# for PMD 3D cam
+/pmd_camera/amplitude/camera_info /pmd_camera/amplitude/image_rect /pmd_camera/distance/image_rect /pmd_camera/distance/camera_info /pmd_camera/points /tf /tf_static /crawler/joint_cmd /joint_states
