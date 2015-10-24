@@ -49,15 +49,14 @@ ros::Time cmd_vel_current_time, cmd_vel_last_time;
 void JointCmdCallback(const crawler_msgs::JointCmd& joint_cmd_msg) {
 
   // time
-  cmd_vel_last_time = cmd_vel_current_time; //save the old time;
   cmd_vel_current_time = joint_cmd_msg.header.stamp; //get new time stamp
 
   // data
   cmd_vel[wheel_L] = (-1) * joint_cmd_msg.jointCmdVel[MMC_WhlLft_JointID]; // flip the left wheel encoder value sign.
   cmd_vel[wheel_R] = joint_cmd_msg.jointCmdVel[MMC_WhlRgt_JointID];
 
-  //sprintf (ros_info_str, "L = %f \t R = %f. \t time_now = %f, \t time_last = %f.", cmd_vel[wheel_L], cmd_vel[wheel_R], encoders_current_time.toSec(), encoders_last_time.toSec());
-  //ROS_INFO ("Encoders: %s", ros_info_str);
+  sprintf (ros_info_str, "L = %f \t R = %f. \t time_now = %f, \t time_last = %f.", cmd_vel[wheel_L], cmd_vel[wheel_R], cmd_vel_current_time.toSec(), cmd_vel_last_time.toSec());
+  ROS_INFO ("Encoders: %s", ros_info_str);
 
 }
 
@@ -70,12 +69,13 @@ double visual_heading_last_Yaw = 0;
 void VisualHeadingCallback(const crawler_msgs::VisualHeading& visual_heading_msg) {
 
   // time
-  visual_heading_last_time = visual_heading_current_time; //save the old time;
   visual_heading_current_time = visual_heading_msg.header.stamp; //get new time stamp
 
-  visual_heading_last_Yaw = visual_heading_current_Yaw; //save the old time;
   // data
   visual_heading_current_Yaw = visual_heading_msg.RPY_radian.z; // heading Yaw
+
+  sprintf (ros_info_str, "Yaw = %f. \t time_now = %f, \t time_last = %f.", visual_heading_current_Yaw, visual_heading_current_time.toSec(), visual_heading_last_time.toSec());
+  ROS_INFO ("Heading: %s", ros_info_str);
 
 }
 
@@ -121,7 +121,7 @@ int main(int argc, char** argv){
   current_time = ros::Time::now();
   last_time = ros::Time::now();
 
-  ros::Rate r(10); // 30Hz
+  ros::Rate r(10); // 10Hz
 
   ROS_INFO ("Crawler Dead Reckoning Start...");
 
@@ -147,12 +147,18 @@ int main(int argc, char** argv){
     vx = v_linear * sin (th)* (-1);
     vy = v_linear * cos (th);
 
+    sprintf (ros_info_str, "v_linear = %f.", v_linear);
+    ROS_INFO ("v_linear: %s", ros_info_str);
+
     double delta_x = (vx * cos(th) - vy * sin(th)) * dt;
     double delta_y = (vx * sin(th) + vy * cos(th)) * dt;
     //double delta_th = vth * dt;
     double delta_th = visual_heading_current_Yaw - visual_heading_last_Yaw;
 
+    //dt_th = (visual_heading_current_time - visual_heading_last_time).toSec();
+    
     // v theta 
+    //vth = delta_th / dt_th;
     vth = delta_th / dt;
 
     x += delta_x;
@@ -196,7 +202,14 @@ int main(int argc, char** argv){
     //publish the message
     odom_pub.publish(odom);
 
+    // Save current to last
     last_time = current_time;
+
+    cmd_vel_last_time = cmd_vel_current_time; //save the old time;
+
+    visual_heading_last_time = visual_heading_current_time; //save the old time;
+    visual_heading_last_Yaw = visual_heading_current_Yaw; //save the Yaw;
+
     r.sleep();
   }
 }
