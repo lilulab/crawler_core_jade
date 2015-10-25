@@ -116,15 +116,15 @@ void TeleopTurtle::joyCallback(const sensor_msgs::Joy::ConstPtr& joy)
         if (fabs(vel.linear.x)< 0.2) {
           vel.linear.x = 0.0;
         } else {
-          //vel.linear.x = vel.linear.x;
-          vel.linear.x -= 0.2 * (vel.linear.x/vel.linear.x) ; 
+          vel.linear.x = vel.linear.x;
+          //vel.linear.x -= 0.2 * (vel.linear.x/vel.linear.x) ; 
         }
 
         if (fabs(vel.angular.z)< 0.2) {
           vel.angular.z = 0.0;
         } else {
-          //vel.angular.z = vel.angular.z;
-          vel.angular.z -= 0.2 * (vel.angular.z/vel.angular.z); 
+          vel.angular.z = vel.angular.z;
+          //vel.angular.z -= 0.2 * (vel.angular.z/vel.angular.z); 
         }
 
         ROS_INFO("Vx(t)     = %f",vel.linear.x);
@@ -202,20 +202,50 @@ void TeleopTurtle::joyCallback(const sensor_msgs::Joy::ConstPtr& joy)
         joint_cmd.jointCmdVel[MMC_WrtPic_JointID] = (float) 0.1 * (joy->buttons[wrt_pic_up_] * 6 + joy->buttons[wrt_pic_down_] * -6) * slowMo * nos;
     } //End if
     
-    // Publish vel
-    vel_pub_.publish(vel);
 
-    // E-Stop
-    if (joy->buttons[but_stop_all_] == 1) {
+        // E-Stop
+        double is_cmd_vel_non_zero = 0;
         for (int i=0; i<10; i++) {
-            joint_cmd.jointCmdVel[i] = 0;
+              is_cmd_vel_non_zero += fabs(joint_cmd.jointCmdVel[i]);
+          if (joy->buttons[but_stop_all_] == 1) {
+              
+              joint_cmd.jointCmdVel[i] = 0;
+          }
+
+        } // end for
+        
+        // check if all of joy axis is non zero
+        double is_joy_non_zero = 0;
+
+        //ROS_INFO("size_axis = %f",sizeof(joy->axes));
+        //ROS_INFO("size_buts = %f",sizeof(joy->buttons));
+
+        for (int i=0; i<6; i++) {
+          is_joy_non_zero += fabs(joy->axes[i]);
+          ROS_INFO("joy_non_zero_axis = %f",is_joy_non_zero);
         }
-    }
 
-    // Publish cmd vel
-    joint_cmd_pub_.publish(joint_cmd);
+        is_joy_non_zero -=2.0; // two trigger axis min is 1.0;
 
-    ++count;
+        for (int i=0; i<15; i++) {
+          is_joy_non_zero += fabs(joy->buttons[i]);
+          ROS_INFO("joy_non_zero_but = %f",is_joy_non_zero);
+        }        
+
+        //6axis // 15 but
+
+        ROS_INFO("joy_non_zero_sum = %f",is_joy_non_zero);
+
+      // publish only if joy is non zero.
+      if (is_joy_non_zero != 0) {
+        // Publish vel
+        vel_pub_.publish(vel);
+        // Publish cmd vel
+        joint_cmd_pub_.publish(joint_cmd);
+        ++count;
+      } // end if
+
+    
 
 }
 

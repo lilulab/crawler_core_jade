@@ -14,13 +14,13 @@
   </node>
 
  <!-- Axes -->
-  <param name="axis_linear" value="1" type="int"/>
+<!--   <param name="axis_linear" value="1" type="int"/>
   <param name="axis_angular" value="0" type="int"/>
   <param name="axis_turbo" value="2" type="int"/>
   <param name="scale_linear" value="1" type="double"/>
   <param name="scale_angular" value="1" type="double"/>
   <param name="slowMo_scale_" value="0.2" type="double"/>
 
-  <node pkg="crawler_teleop" type="crawler_teleop_node" name="crawler_teleop_node"/>
+  <node pkg="crawler_teleop" type="crawler_teleop_node" name="crawler_teleop_node"/> -->
 
 </launch>
