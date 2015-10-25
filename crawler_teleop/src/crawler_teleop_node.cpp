@@ -49,7 +49,7 @@ private:
   double l_scale_;
   double a_scale_;
   double slowMo_scale_;
-  int count = 0;
+  int count;
   
   ros::Publisher vel_pub_;
   ros::Subscriber joy_sub_;
@@ -103,8 +103,39 @@ void TeleopTurtle::joyCallback(const sensor_msgs::Joy::ConstPtr& joy)
     //vel.linear = l_scale_*joy->axes[linear_];
     if (joy != NULL) {
         // ROS > Hydro
-        vel.linear.x = l_scale_*joy->axes[linear_]; //LS
-        vel.angular.z = a_scale_*joy->axes[angular_]; //LS
+
+        // LS for drive the base motion.
+
+        vel.linear.x = joy->axes[linear_];
+        vel.angular.z = joy->axes[angular_]; 
+
+        ROS_INFO("Vx(0)     = %f",vel.linear.x);
+        ROS_INFO("Vz(0)     = %f",vel.angular.z);       
+
+        // Dead zone enforcement!
+        if (fabs(vel.linear.x)< 0.2) {
+          vel.linear.x = 0.0;
+        } else {
+          //vel.linear.x = vel.linear.x;
+          vel.linear.x -= 0.2 * (vel.linear.x/vel.linear.x) ; 
+        }
+
+        if (fabs(vel.angular.z)< 0.2) {
+          vel.angular.z = 0.0;
+        } else {
+          //vel.angular.z = vel.angular.z;
+          vel.angular.z -= 0.2 * (vel.angular.z/vel.angular.z); 
+        }
+
+        ROS_INFO("Vx(t)     = %f",vel.linear.x);
+        ROS_INFO("Vz(t)     = %f",vel.angular.z);
+
+        //vel.linear.x = joy->axes[linear_];
+        //vel.angular.z = joy->axes[angular_];
+
+
+        vel.linear.x = l_scale_ * vel.linear.x; //LS
+        vel.angular.z = a_scale_ * vel.angular.z; //LS
         // Speed slowMo
         float slowMo;
         slowMo = joy->axes[slowMo_]; // RT
@@ -134,8 +165,8 @@ void TeleopTurtle::joyCallback(const sensor_msgs::Joy::ConstPtr& joy)
         joint_cmd.header.stamp = ros::Time::now();
 
         // Wheel cmd
-        joint_cmd.jointCmdVel[MMC_WhlLft_JointID] = -vel.linear.x * 3 - vel.angular.z * 3;
-        joint_cmd.jointCmdVel[MMC_WhlRgt_JointID] = vel.linear.x * 3 - vel.angular.z * 3 ;
+        joint_cmd.jointCmdVel[MMC_WhlLft_JointID] = -vel.linear.x * 4 - vel.angular.z * 4;
+        joint_cmd.jointCmdVel[MMC_WhlRgt_JointID] = vel.linear.x * 4 - vel.angular.z * 4 ;
 
         // Arm P Y
         joint_cmd.jointCmdVel[MMC_ArmYaw_JointID] = joy->axes[arm_yaw_] * 6 * slowMo * nos;
