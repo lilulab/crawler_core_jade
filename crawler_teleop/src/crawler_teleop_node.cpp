@@ -167,8 +167,8 @@ void TeleopTurtle::joyCallback(const sensor_msgs::Joy::ConstPtr& joy)
         joint_cmd.header.stamp = ros::Time::now();
 
         // Wheel cmd
-        joint_cmd.jointCmdVel[MMC_WhlLft_JointID] = -vel.linear.x * 4 - vel.angular.z * 4;
-        joint_cmd.jointCmdVel[MMC_WhlRgt_JointID] = vel.linear.x * 4 - vel.angular.z * 4 ;
+        joint_cmd.jointCmdVel[MMC_WhlLft_JointID] = vel.linear.x * 4 - vel.angular.z * 4;
+        joint_cmd.jointCmdVel[MMC_WhlRgt_JointID] = -vel.linear.x * 4 - vel.angular.z * 4;
 
         // Arm P Y
         joint_cmd.jointCmdVel[MMC_ArmYaw_JointID] = joy->axes[arm_yaw_] * 6 * slowMo * nos;
