@@ -50,6 +50,8 @@ private:
   double a_scale_;
   double slowMo_scale_;
   int count;
+
+  int non_zero_total_count;
   
   ros::Publisher vel_pub_;
   ros::Subscriber joy_sub_;
@@ -236,8 +238,18 @@ void TeleopTurtle::joyCallback(const sensor_msgs::Joy::ConstPtr& joy)
 
         ROS_INFO("joy_non_zero_sum = %f",is_joy_non_zero);
 
+        if (is_joy_non_zero == 0) {
+          non_zero_total_count ++;
+
+        } else {
+          non_zero_total_count = 0;
+        }
+
+        ROS_INFO("non_zero_total_count = %d",non_zero_total_count);
+
       // publish only if joy is non zero.
-      if (is_joy_non_zero != 0) {
+      //if (is_joy_non_zero != 0) {
+      if (non_zero_total_count < 5) {
         // Publish vel
         vel_pub_.publish(vel);
         // Publish cmd vel
