@@ -140,6 +140,7 @@ int main(int argc, char** argv){
 
   ros::Publisher odom_pub = n.advertise<nav_msgs::Odometry>("odom", 50);
   ros::Publisher pose_pub = n.advertise<geometry_msgs::TwistStamped>("crawler/dead_reckoning_pose", 10);
+  ros::Publisher vrep_pose_pub = n.advertise<geometry_msgs::PoseStamped>("vrep/dead_reckoning_pose", 10);
   ros::Publisher crawler_vis_pub = n.advertise<visualization_msgs::Marker>( "pose_rviz_marker", 0 );
   ros::Publisher wingbay_vis_pub = n.advertise<visualization_msgs::Marker>( "wingbayrviz_marker", 0 );
 
@@ -243,6 +244,8 @@ int main(int argc, char** argv){
 
     // calculate theta.
     double delta_th = 0;
+
+    // 0 or 1 to select heading source
     // if (_use_visual_heading == 1.0) { 
     //   // using visual heading.
     //   delta_th = visual_heading_current_Yaw - visual_heading_last_Yaw;
@@ -352,7 +355,7 @@ int main(int argc, char** argv){
 
     geometry_msgs::TwistStamped pose;
     pose.header.stamp = current_time;
-    pose.header.frame_id = "crawler_pose";
+    pose.header.frame_id = "crawler_dead_reckoning_pose";
     pose.twist.linear.x = crawler_pose_x;
     pose.twist.linear.y = crawler_pose_y;
     pose.twist.linear.z = crawler_pose_z;
@@ -364,6 +367,18 @@ int main(int argc, char** argv){
     geometry_msgs::Quaternion pose_quat = tf::createQuaternionMsgFromYaw(crawler_orient);
     
     pose_pub.publish(pose);
+
+    // pub for vrep
+    geometry_msgs::PoseStamped rviz_pose;
+    rviz_pose.header.stamp = current_time;
+    rviz_pose.header.frame_id = "vrep_crawler_dead_reckoning_pose";
+    rviz_pose.pose.position.x = crawler_pose_x;
+    rviz_pose.pose.position.y = crawler_pose_y;
+    rviz_pose.pose.position.z = crawler_pose_z;
+
+    rviz_pose.pose.orientation = pose_quat; 
+    
+    vrep_pose_pub.publish(rviz_pose);    
 
     x = crawler_pose_x;
     y = crawler_pose_y;
