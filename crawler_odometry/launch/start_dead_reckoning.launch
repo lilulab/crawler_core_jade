@@ -7,11 +7,11 @@
     <!-- <param name="use_visual_heading" type="double" value="1.0" /> -->
  
 
-    <param name="crawler_init_pose_x" type="double" value="0.6812" />
-    <param name="crawler_init_pose_y" type="double" value="0.0" />
-    <param name="crawler_init_pose_z" type="double" value="0.0" />
-    <!-- <param name="crawler_init_pose_yaw" type="double" value="1-1.57079632679" /> -->
-    <param name="crawler_init_pose_yaw" type="double" value="0.0" />
+    <param name="crawler_init_pose_x" type="double" value="0.0" />
+    <param name="crawler_init_pose_y" type="double" value="-0.6812" />
+    <param name="crawler_init_pose_z" type="double" value="-0.14" />
+    <param name="crawler_init_pose_yaw" type="double" value="-1.57079632679" /> 
+    <!--<param name="crawler_init_pose_yaw" type="double" value="0.0" />-->
  
   <!-- crawler_dead_reckoning node -->
   <node pkg="crawler_odometry" type="crawler_dead_reckoning_node" name="crawler_dead_reckoning" respawn="true" output="screen" >

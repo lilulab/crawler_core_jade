@@ -123,7 +123,7 @@ int main(int argc, char** argv){
 
 
   ros::Publisher odom_pub = n.advertise<nav_msgs::Odometry>("odom", 50);
-  ros::Publisher pose_pub = n.advertise<geometry_msgs::TwistStamped>("pose", 50);
+  ros::Publisher pose_pub = n.advertise<geometry_msgs::TwistStamped>("crawler/pose", 50);
   ros::Publisher crawler_vis_pub = n.advertise<visualization_msgs::Marker>( "pose_rviz_marker", 0 );
   ros::Publisher wingbay_vis_pub = n.advertise<visualization_msgs::Marker>( "wingbayrviz_marker", 0 );
 
@@ -139,6 +139,7 @@ int main(int argc, char** argv){
 
   double crawler_pose_x = 0.0;
   double crawler_pose_y = 0.0;
+  double crawler_pose_z = 0.0;
   double crawler_orient = 0.0;
 
   ros::Time current_time, last_time;
@@ -157,6 +158,7 @@ int main(int argc, char** argv){
   crawler_orient = _crawler_init_pose_yaw;
   crawler_pose_x = _crawler_init_pose_x;
   crawler_pose_y = _crawler_init_pose_y;
+  crawler_pose_z = _crawler_init_pose_z;
 
 
   ROS_INFO ("Crawler Dead Reckoning Start...");
@@ -295,7 +297,7 @@ int main(int argc, char** argv){
     pose.header.frame_id = "crawler_pose";
     pose.twist.linear.x = crawler_pose_x;
     pose.twist.linear.y = crawler_pose_y;
-    pose.twist.linear.z = 0;
+    pose.twist.linear.z = crawler_pose_z;
 
     pose.twist.angular.x = 0;
     pose.twist.angular.y = 0;
