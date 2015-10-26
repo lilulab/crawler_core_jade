@@ -1,0 +1,19 @@
+<launch>
+
+    <!-- bool/int/float/double/string  -->
+
+    <!-- if using visual heading then 1.0, if not 0.0 -->
+    <param name="use_visual_heading" type="double" value="0.0" />
+    <!-- <param name="use_visual_heading" type="double" value="1.0" /> -->
+ 
+
+    <param name="crawler_init_pose_x" type="double" value="0.0" />
+    <param name="crawler_init_pose_y" type="double" value="0.0" />
+    <param name="crawler_init_pose_z" type="double" value="0.0" />
+    <param name="crawler_init_pose_yaw" type="double" value="0.0" />
+ 
+  <!-- crawler_dead_reckoning node -->
+  <node pkg="crawler_odometry" type="crawler_dead_reckoning_node" name="crawler_dead_reckoning" respawn="true" output="screen" >
+  </node>
+
+</launch>

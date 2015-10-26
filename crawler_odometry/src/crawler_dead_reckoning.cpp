@@ -5,8 +5,12 @@
 #include <string.h>
 
 #include <sensor_msgs/JointState.h>
+#include <visualization_msgs/Marker.h>
 #include <crawler_msgs/JointCmd.h>
 #include <crawler_msgs/VisualHeading.h>
+
+
+#define PI 3.14159265359
 
 char ros_info_str [100];
 
@@ -52,11 +56,11 @@ void JointCmdCallback(const crawler_msgs::JointCmd& joint_cmd_msg) {
   cmd_vel_current_time = joint_cmd_msg.header.stamp; //get new time stamp
 
   // data
-  cmd_vel[wheel_L] = (-1) * joint_cmd_msg.jointCmdVel[MMC_WhlLft_JointID]; // flip the left wheel encoder value sign.
-  cmd_vel[wheel_R] = joint_cmd_msg.jointCmdVel[MMC_WhlRgt_JointID];
+  cmd_vel[wheel_L] =  joint_cmd_msg.jointCmdVel[MMC_WhlLft_JointID]; // flip the left wheel encoder value sign.
+  cmd_vel[wheel_R] = (-1) * joint_cmd_msg.jointCmdVel[MMC_WhlRgt_JointID];
 
   sprintf (ros_info_str, "L = %f \t R = %f. \t time_now = %f, \t time_last = %f.", cmd_vel[wheel_L], cmd_vel[wheel_R], cmd_vel_current_time.toSec(), cmd_vel_last_time.toSec());
-  ROS_INFO ("Encoders: %s", ros_info_str);
+  ROS_INFO ("[CB]Encoders: %s", ros_info_str);
 
 }
 
@@ -73,9 +77,10 @@ void VisualHeadingCallback(const crawler_msgs::VisualHeading& visual_heading_msg
 
   // data
   visual_heading_current_Yaw = visual_heading_msg.RPY_radian.z; // heading Yaw
+  visual_heading_current_Yaw = round(visual_heading_current_Yaw * 100) / 100;
 
   sprintf (ros_info_str, "Yaw = %f. \t time_now = %f, \t time_last = %f.", visual_heading_current_Yaw, visual_heading_current_time.toSec(), visual_heading_last_time.toSec());
-  ROS_INFO ("Heading: %s", ros_info_str);
+  ROS_INFO ("[CB]Heading: %s", ros_info_str);
 
 }
 
@@ -107,6 +112,9 @@ int main(int argc, char** argv){
   ros::Subscriber visual_heading_sub_ = n.subscribe("crawler/visual_heading", 1, &VisualHeadingCallback);
 
   ros::Publisher odom_pub = n.advertise<nav_msgs::Odometry>("odom", 50);
+  ros::Publisher pose_pub = n.advertise<geometry_msgs::TwistStamped>("pose", 50);
+  ros::Publisher vis_pub = n.advertise<visualization_msgs::Marker>( "pose_rviz_marker", 0 );
+
   tf::TransformBroadcaster odom_broadcaster;
 
   double x = 0.0;
@@ -117,11 +125,27 @@ int main(int argc, char** argv){
   double vy = 0.0;
   double vth = 0.0;
 
+  double crawler_pose_x = 0.0;
+  double crawler_pose_y = 0.0;
+  double crawler_orient = 0.0;
+
   ros::Time current_time, last_time;
   current_time = ros::Time::now();
   last_time = ros::Time::now();
 
-  ros::Rate r(10); // 10Hz
+  ros::Rate r(20); // 10Hz
+
+  // check ros param
+  double _crawler_init_pose_x, _crawler_init_pose_y, _crawler_init_pose_z, _crawler_init_pose_yaw;
+  n.getParam("crawler_init_pose_x", _crawler_init_pose_x);
+  n.getParam("crawler_init_pose_y", _crawler_init_pose_y);
+  n.getParam("crawler_init_pose_z", _crawler_init_pose_z);
+  n.getParam("crawler_init_pose_yaw", _crawler_init_pose_yaw);
+
+  crawler_orient = _crawler_init_pose_yaw;
+  crawler_pose_x = _crawler_init_pose_x;
+  crawler_pose_y = _crawler_init_pose_y;
+
 
   ROS_INFO ("Crawler Dead Reckoning Start...");
 
@@ -130,40 +154,159 @@ int main(int argc, char** argv){
     ros::spinOnce();               // check for incoming messages
     current_time = ros::Time::now();
 
+
+    
+    double _use_visual_heading;
+    n.getParam("use_visual_heading", _use_visual_heading);
+    // if (n.getParam("use_visual_heading", _use_visual_heading))
+    // {
+    //   ROS_INFO("Got _use_visual_heading: %f", _use_visual_heading);
+    // }
+    // else
+    // {
+    //   ROS_ERROR("Failed to get param 'use_visual_heading'");
+    // }
+
     //compute odometry in a typical way given the velocities of the robot
     double dt = (current_time - last_time).toSec();
 
     wheel_speed[wheel_L] = wheel_speed_pk * cmd_vel[wheel_L] + wheel_speed_pb;
     wheel_speed[wheel_R] = wheel_speed_pk * cmd_vel[wheel_R] + wheel_speed_pb;
 
-    // sprintf (ros_info_str, "L = %f \t R = %f. \t time_now = %f, \t time_last = %f.", wheel_speed[wheel_L], wheel_speed[wheel_R], cmd_vel_current_time.toSec(), cmd_vel_last_time.toSec());
-    // ROS_INFO ("wheel_speed: %s", ros_info_str);
+    // setprecision set to 0.01
+    //wheel_speed[wheel_L] = round(wheel_speed[wheel_L] * 100) / 100;
+    //wheel_speed[wheel_R] = round(wheel_speed[wheel_R] * 100) / 100;
+
+    sprintf (ros_info_str, "cmd_vel: L= %f,\tR= %f. \t w_spt: L= %f,\tR= %f.", cmd_vel[wheel_L], cmd_vel[wheel_R], wheel_speed[wheel_L], wheel_speed[wheel_R]);
+    ROS_INFO ("[ML]%s", ros_info_str);
 
 
     // real speed is the midsegment of a trapezoid form by wheel_speed_L, wheel_speed_R, and wheel_width.
-    double v_linear = (wheel_speed[wheel_L] + wheel_speed[wheel_R])/2;
-    th = visual_heading_current_Yaw;
+    double v_linear = ((wheel_speed[wheel_L] + wheel_speed[wheel_R])/2);
+
+    // Use visual heading only if that node is open
+    // if ((visual_heading_current_time !=0) && (visual_heading_last_time !=0)) {
+
+    // }
+
+    // calculate theta.
+    double delta_th = 0;
+    if (_use_visual_heading == 1.0) { 
+      // using visual heading.
+      delta_th = visual_heading_current_Yaw - visual_heading_last_Yaw;
+      th = visual_heading_current_Yaw;
+      vth = delta_th / dt;    
+    } else if (_use_visual_heading == 0.0) { 
+      // use wheel speed to calculate heading angle.
+      // CCW is possitive heading angle, then wheel speed R>L
+      double wheel_diff = wheel_speed[wheel_R]-wheel_speed[wheel_L];
+      //vth = atan(fabs(wheel_diff) / wheel_width) * (wheel_diff/wheel_diff);  // atan angle * sign
+      //vth = atan2( wheel_diff, wheel_width );
+
+      // when angle is small enough tan(t) ~= t
+      // http://www.wolframalpha.com/input/?i=plot+y%3D+tan%28x%29+and+y%3Dx+%28x+from+-1+to+1%29
+      vth = wheel_diff / wheel_width;
+      delta_th = vth * dt;
+      th += delta_th;
+
+      sprintf (ros_info_str, "wheel_diff = %f, \t wheel_diff / wheel_width = %f.", wheel_diff, (wheel_diff / wheel_width));
+      ROS_INFO ("[ML]%s", ros_info_str);
+
+
+    } else {
+      ROS_INFO ("[ML]rosparam <use_visual_heading> setup incorrectly! (should be 0.0 or 1.0)");
+    }
     
-    vx = v_linear * sin (th)* (-1);
-    vy = v_linear * cos (th);
+    vx = v_linear * sin (vth)* (-1);
+    vy = v_linear * cos (vth);
 
-    sprintf (ros_info_str, "v_linear = %f.", v_linear);
-    ROS_INFO ("v_linear: %s", ros_info_str);
+    double delta_y = (vx * cos(th) - vy * sin(th)) * dt;
+    double delta_x = (vx * sin(th) + vy * cos(th)) * dt;
 
-    double delta_x = (vx * cos(th) - vy * sin(th)) * dt;
-    double delta_y = (vx * sin(th) + vy * cos(th)) * dt;
+    x += delta_x;
+    y += delta_y;    
+
+    //x += vx * dt;
+    //y += vy * dt;
+
+    sprintf (ros_info_str, "v_linear = %f.\tvx= %f,\tvy=%f.\tx=%f,\ty=%f.\tdt=%f.", v_linear, vx, vy, x, y, dt);
+    ROS_INFO ("[ML]%s", ros_info_str);
+
+    sprintf (ros_info_str, "vth = %f.\tdelta_th= %f,\tth_current=%f.\tth_current_last=%f.", vth, delta_th, th, visual_heading_last_Yaw);
+    ROS_INFO ("[ML]%s", ros_info_str);
+
+    //double delta_x = (vx * cos(th) - vy * sin(th)) * dt;
+    //double delta_y = (vx * sin(th) + vy * cos(th)) * dt;
     //double delta_th = vth * dt;
-    double delta_th = visual_heading_current_Yaw - visual_heading_last_Yaw;
 
     //dt_th = (visual_heading_current_time - visual_heading_last_time).toSec();
     
     // v theta 
     //vth = delta_th / dt_th;
-    vth = delta_th / dt;
 
-    x += delta_x;
-    y += delta_y;
+
+    //x += delta_x;
+    //y += delta_y;
     //th += delta_th;
+
+    // publish pose
+    crawler_orient = std::fmod( crawler_orient + vth * dt, 2*PI);
+    // crawler_pose_x += std::sin(crawler_orient + PI/2.0) * v_linear * dt;
+    crawler_pose_x += std::sin(crawler_orient + PI/2.0) * v_linear * dt;
+    // crawler_pose_y += std::cos(crawler_orient + PI/2.0) * v_linear * dt;
+    crawler_pose_y -= std::cos(crawler_orient + PI/2.0) * v_linear * dt;
+
+    sprintf (ros_info_str, "orient = %f.\t pose_x= %f,\t pose_y=%f.", crawler_orient, crawler_pose_x, crawler_pose_y);
+    ROS_INFO ("[ML]%s", ros_info_str);
+
+    geometry_msgs::TwistStamped pose;
+    pose.header.stamp = current_time;
+    pose.header.frame_id = "crawler_pose";
+    pose.twist.linear.x = crawler_pose_x;
+    pose.twist.linear.y = crawler_pose_y;
+    pose.twist.linear.z = 0;
+
+    pose.twist.angular.x = 0;
+    pose.twist.angular.y = 0;
+    pose.twist.angular.z = crawler_orient;
+
+    geometry_msgs::Quaternion pose_quat = tf::createQuaternionMsgFromYaw(crawler_orient);
+    
+    pose_pub.publish(pose);
+
+    x = crawler_pose_x;
+    y = crawler_pose_y;
+
+    th = crawler_orient;
+
+  //     orient_ = std::fmod(orient_ + ang_vel_ * dt, 2*PI);
+  // pos_.rx() += std::sin(orient_ + PI/2.0) * lin_vel_ * dt;
+  // pos_.ry() += std::cos(orient_ + PI/2.0) * lin_vel_ * dt;
+
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "base_link";
+    marker.header.stamp = ros::Time();
+    marker.ns = "crawler";
+    marker.id = 0;
+    marker.type = visualization_msgs::Marker::ARROW;
+    //marker.type = visualization_msgs::Marker::MESH_RESOURCE;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.pose.position.x = crawler_pose_x;
+    marker.pose.position.y = crawler_pose_y;
+    marker.pose.position.z = 0;
+    marker.pose.orientation = pose_quat;
+
+    marker.scale.x = 0.5;
+    marker.scale.y = 0.1;
+    marker.scale.z = 0.1;
+    marker.color.a = 1.0; // Don't forget to set the alpha!
+    marker.color.r = 0.0;
+    marker.color.g = 1.0;
+    marker.color.b = 0.0;
+    //only if using a MESH_RESOURCE marker type:
+    marker.mesh_resource = "package://pr2_description/meshes/base_v0/base.dae";
+    marker.mesh_use_embedded_materials = true;
+    vis_pub.publish( marker );
 
     //since all odometry is 6DOF we'll need a quaternion created from yaw
     geometry_msgs::Quaternion odom_quat = tf::createQuaternionMsgFromYaw(th);
@@ -185,7 +328,7 @@ int main(int argc, char** argv){
     //next, we'll publish the odometry message over ROS
     nav_msgs::Odometry odom;
     odom.header.stamp = current_time;
-    odom.header.frame_id = "odom";
+    odom.header.frame_id = "base_link";
 
     //set the position
     odom.pose.pose.position.x = x;
@@ -194,7 +337,7 @@ int main(int argc, char** argv){
     odom.pose.pose.orientation = odom_quat;
 
     //set the velocity
-    odom.child_frame_id = "base_link";
+    odom.child_frame_id = "odom";
     odom.twist.twist.linear.x = vx;
     odom.twist.twist.linear.y = vy;
     odom.twist.twist.angular.z = vth;
@@ -209,6 +352,9 @@ int main(int argc, char** argv){
 
     visual_heading_last_time = visual_heading_current_time; //save the old time;
     visual_heading_last_Yaw = visual_heading_current_Yaw; //save the Yaw;
+
+
+    ROS_INFO (" ");
 
     r.sleep();
   }
