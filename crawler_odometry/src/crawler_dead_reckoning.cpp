@@ -84,6 +84,14 @@ void VisualHeadingCallback(const crawler_msgs::VisualHeading& visual_heading_msg
 
 }
 
+// // VO_TEST // 
+// geometry_msgs::PoseStamped visual_odometry;
+// void VisualOdometryCallback(const geometry_msgs::PoseStamped& visual_odometry_msg) {
+//   visual_odometry.pose.position = visual_odometry_msg.pose.position;
+//   visual_odometry.pose.orientation = visual_odometry_msg.pose.orientation;
+
+// }
+
 // JointStateCallback
 // ros::Time encoders_last_time encoders_current_time;
 // double encoders[2] = {0,0};
@@ -110,10 +118,14 @@ int main(int argc, char** argv){
   //ros::Subscriber joint_states_sub_ = n.subscribe("joint_states", 1, &JointStateCallback);
   ros::Subscriber joint_cmd_sub_ = n.subscribe("/crawler/joint_cmd", 1, &JointCmdCallback);
   ros::Subscriber visual_heading_sub_ = n.subscribe("crawler/visual_heading", 1, &VisualHeadingCallback);
+  // ros::Subscriber visual_odometry_sub_ = n.subscribe("visual_odometry/state", 1, &VisualOdometryCallback);
+  //visual_odometry/state
+
 
   ros::Publisher odom_pub = n.advertise<nav_msgs::Odometry>("odom", 50);
   ros::Publisher pose_pub = n.advertise<geometry_msgs::TwistStamped>("pose", 50);
-  ros::Publisher vis_pub = n.advertise<visualization_msgs::Marker>( "pose_rviz_marker", 0 );
+  ros::Publisher crawler_vis_pub = n.advertise<visualization_msgs::Marker>( "pose_rviz_marker", 0 );
+  ros::Publisher wingbay_vis_pub = n.advertise<visualization_msgs::Marker>( "wingbayrviz_marker", 0 );
 
   tf::TransformBroadcaster odom_broadcaster;
 
@@ -170,8 +182,27 @@ int main(int argc, char** argv){
     //compute odometry in a typical way given the velocities of the robot
     double dt = (current_time - last_time).toSec();
 
-    wheel_speed[wheel_L] = wheel_speed_pk * cmd_vel[wheel_L] + wheel_speed_pb;
-    wheel_speed[wheel_R] = wheel_speed_pk * cmd_vel[wheel_R] + wheel_speed_pb;
+    
+    
+
+    if (fabs(cmd_vel[wheel_L]) <= fabs(wheel_speed_pb / wheel_speed_pk)) {
+      wheel_speed[wheel_L] = 0.0;
+      ROS_INFO ("L01");
+    } else {
+      double sign_wheel_L = cmd_vel[wheel_L] / fabs(cmd_vel[wheel_L]);
+      wheel_speed[wheel_L] = (wheel_speed_pk * fabs(cmd_vel[wheel_L]) + wheel_speed_pb) * sign_wheel_L;
+      ROS_INFO ("L02, sign %f",sign_wheel_L);
+    }
+
+    if (fabs(cmd_vel[wheel_R]) <= fabs(wheel_speed_pb / wheel_speed_pk)) {
+      wheel_speed[wheel_R] = 0.0;
+      ROS_INFO ("R01");
+    } else {
+      double sign_wheel_R = cmd_vel[wheel_R] / fabs(cmd_vel[wheel_R]);
+
+      wheel_speed[wheel_R] = (wheel_speed_pk * fabs(cmd_vel[wheel_R]) + wheel_speed_pb) * sign_wheel_R;
+      ROS_INFO ("R02, sign %f",sign_wheel_R);
+    }    
 
     // setprecision set to 0.01
     //wheel_speed[wheel_L] = round(wheel_speed[wheel_L] * 100) / 100;
@@ -200,7 +231,7 @@ int main(int argc, char** argv){
       // use wheel speed to calculate heading angle.
       // CCW is possitive heading angle, then wheel speed R>L
       double wheel_diff = wheel_speed[wheel_R]-wheel_speed[wheel_L];
-      //vth = atan(fabs(wheel_diff) / wheel_width) * (wheel_diff/wheel_diff);  // atan angle * sign
+      //vth = atan(fabs(wheel_diff) / wheel_width) * (wheel_diff/fabs(wheel_diff);  // atan angle * sign
       //vth = atan2( wheel_diff, wheel_width );
 
       // when angle is small enough tan(t) ~= t
@@ -288,25 +319,57 @@ int main(int argc, char** argv){
     marker.header.stamp = ros::Time();
     marker.ns = "crawler";
     marker.id = 0;
-    marker.type = visualization_msgs::Marker::ARROW;
-    //marker.type = visualization_msgs::Marker::MESH_RESOURCE;
+    // marker.type = visualization_msgs::Marker::ARROW;
+    marker.type = visualization_msgs::Marker::MESH_RESOURCE;
     marker.action = visualization_msgs::Marker::ADD;
+    // VO_TEST // marker.pose.position = visual_odometry.pose.position;
     marker.pose.position.x = crawler_pose_x;
     marker.pose.position.y = crawler_pose_y;
     marker.pose.position.z = 0;
+    // VO_TEST // marker.pose.orientation = visual_odometry.pose.orientation;
     marker.pose.orientation = pose_quat;
 
-    marker.scale.x = 0.5;
-    marker.scale.y = 0.1;
-    marker.scale.z = 0.1;
-    marker.color.a = 1.0; // Don't forget to set the alpha!
-    marker.color.r = 0.0;
+    marker.scale.x = 1;
+    marker.scale.y = 1;
+    marker.scale.z = 1;
+    marker.color.a = 0.95; // Don't forget to set the alpha!
+    marker.color.r = 1.0;
     marker.color.g = 1.0;
-    marker.color.b = 0.0;
+    marker.color.b = 1.0;
     //only if using a MESH_RESOURCE marker type:
-    marker.mesh_resource = "package://pr2_description/meshes/base_v0/base.dae";
+    marker.mesh_resource = "package://crawler_odometry/meshes/IWAMPV2.0_simple_bin.STL";
     marker.mesh_use_embedded_materials = true;
-    vis_pub.publish( marker );
+    crawler_vis_pub.publish( marker );
+
+    // pub wingbay
+    visualization_msgs::Marker wingbay;
+    wingbay.header.frame_id = "base_link";
+    wingbay.header.stamp = ros::Time();
+    wingbay.ns = "crawler";
+    wingbay.id = 0;
+    // wingbay.type = visualization_msgs::wingbay::ARROW;
+    wingbay.type = visualization_msgs::Marker::MESH_RESOURCE;
+    wingbay.action = visualization_msgs::Marker::ADD;
+    wingbay.pose.position.x = 0;
+    wingbay.pose.position.y = 0;
+    wingbay.pose.position.z = 0;
+    wingbay.pose.orientation.x = 0;
+    wingbay.pose.orientation.y = 0;
+    wingbay.pose.orientation.z = 0;
+    wingbay.pose.orientation.w = 0;
+
+    wingbay.scale.x = 1;
+    wingbay.scale.y = 1;
+    wingbay.scale.z = 1;
+    wingbay.color.a = 0.6; // Don't forget to set the alpha!
+    wingbay.color.r = 0.5;
+    wingbay.color.g = 0.7;
+    wingbay.color.b = 0.0;
+    //only if using a MESH_RESOURCE wingbay type:
+    wingbay.mesh_resource = "package://crawler_odometry/meshes/34WingBay_lower_basement.STL";
+    wingbay.mesh_use_embedded_materials = true;
+    wingbay_vis_pub.publish( wingbay );
+
 
     //since all odometry is 6DOF we'll need a quaternion created from yaw
     geometry_msgs::Quaternion odom_quat = tf::createQuaternionMsgFromYaw(th);
