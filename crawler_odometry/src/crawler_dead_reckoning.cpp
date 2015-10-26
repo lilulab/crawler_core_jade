@@ -6,6 +6,9 @@
 
 #include <sensor_msgs/JointState.h>
 #include <visualization_msgs/Marker.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
+
+
 #include <crawler_msgs/JointCmd.h>
 #include <crawler_msgs/VisualHeading.h>
 
@@ -84,6 +87,17 @@ void VisualHeadingCallback(const crawler_msgs::VisualHeading& visual_heading_msg
 
 }
 
+  double crawler_pose_x = 0.0;
+  double crawler_pose_y = 0.0;
+  double crawler_pose_z = 0.0;
+  double crawler_orient = 0.0;
+
+void InitPoseCallback(const geometry_msgs::PoseWithCovarianceStamped& init_pose_msg) {
+  crawler_pose_x = init_pose_msg.pose.pose.position.x;
+  crawler_pose_y = init_pose_msg.pose.pose.position.y;
+  crawler_orient = tf::getYaw(init_pose_msg.pose.pose.orientation);
+}
+
 // // VO_TEST // 
 // geometry_msgs::PoseStamped visual_odometry;
 // void VisualOdometryCallback(const geometry_msgs::PoseStamped& visual_odometry_msg) {
@@ -117,7 +131,9 @@ int main(int argc, char** argv){
   ros::NodeHandle n;
   //ros::Subscriber joint_states_sub_ = n.subscribe("joint_states", 1, &JointStateCallback);
   ros::Subscriber joint_cmd_sub_ = n.subscribe("/crawler/joint_cmd", 1, &JointCmdCallback);
-  ros::Subscriber visual_heading_sub_ = n.subscribe("crawler/visual_heading", 1, &VisualHeadingCallback);
+  ros::Subscriber visual_heading_sub_ = n.subscribe("/crawler/visual_heading", 1, &VisualHeadingCallback);
+  ros::Subscriber init_pose_sub_ = n.subscribe("/initialpose", 1, &InitPoseCallback);
+
   // ros::Subscriber visual_odometry_sub_ = n.subscribe("visual_odometry/state", 1, &VisualOdometryCallback);
   //visual_odometry/state
 
@@ -136,11 +152,6 @@ int main(int argc, char** argv){
   double vx = 0.0;
   double vy = 0.0;
   double vth = 0.0;
-
-  double crawler_pose_x = 0.0;
-  double crawler_pose_y = 0.0;
-  double crawler_pose_z = 0.0;
-  double crawler_orient = 0.0;
 
   double vis_delta_th = 0.0;
   double vis_th = 0.0;
@@ -391,6 +402,9 @@ int main(int argc, char** argv){
     crawler_vis_pub.publish( marker );
 
     // pub wingbay
+
+    geometry_msgs::Quaternion wingbay_quat = tf::createQuaternionMsgFromYaw(-(PI/2));
+
     visualization_msgs::Marker wingbay;
     wingbay.header.frame_id = "base_link";
     wingbay.header.stamp = ros::Time();
@@ -402,10 +416,11 @@ int main(int argc, char** argv){
     wingbay.pose.position.x = 0;
     wingbay.pose.position.y = 0;
     wingbay.pose.position.z = 0;
-    wingbay.pose.orientation.x = 0;
-    wingbay.pose.orientation.y = 0;
-    wingbay.pose.orientation.z = 0;
-    wingbay.pose.orientation.w = 0;
+    // wingbay.pose.orientation.x = 0;
+    // wingbay.pose.orientation.y = 0;
+    // wingbay.pose.orientation.z = 0;
+    // wingbay.pose.orientation.w = 0;
+    wingbay.pose.orientation = wingbay_quat;
 
     wingbay.scale.x = 1;
     wingbay.scale.y = 1;
