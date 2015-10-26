@@ -77,9 +77,9 @@ void VisualHeadingCallback(const crawler_msgs::VisualHeading& visual_heading_msg
 
   // data
   visual_heading_current_Yaw = visual_heading_msg.RPY_radian.z; // heading Yaw
-  visual_heading_current_Yaw = round(visual_heading_current_Yaw * 100) / 100;
+  //visual_heading_current_Yaw = round(visual_heading_current_Yaw * 100) / 100;
 
-  sprintf (ros_info_str, "Yaw = %f. \t time_now = %f, \t time_last = %f.", visual_heading_current_Yaw, visual_heading_current_time.toSec(), visual_heading_last_time.toSec());
+  sprintf (ros_info_str, "Yaw = %f. \t Yaw_last = %f. \t time_now = %f, \t time_last = %f.", visual_heading_current_Yaw, visual_heading_last_Yaw, visual_heading_current_time.toSec(), visual_heading_last_time.toSec());
   ROS_INFO ("[CB]Heading: %s", ros_info_str);
 
 }
@@ -140,6 +140,14 @@ int main(int argc, char** argv){
   double crawler_pose_x = 0.0;
   double crawler_pose_y = 0.0;
   double crawler_orient = 0.0;
+
+  double vis_delta_th = 0.0;
+  double vis_th = 0.0;
+  double vis_vth = 0.0;   
+
+  double whe_vth = 0.0;
+  double whe_delta_th = 0.0;
+  double whe_th = 0.0;
 
   ros::Time current_time, last_time;
   current_time = ros::Time::now();
@@ -222,32 +230,71 @@ int main(int argc, char** argv){
 
     // calculate theta.
     double delta_th = 0;
-    if (_use_visual_heading == 1.0) { 
-      // using visual heading.
-      delta_th = visual_heading_current_Yaw - visual_heading_last_Yaw;
-      th = visual_heading_current_Yaw;
-      vth = delta_th / dt;    
-    } else if (_use_visual_heading == 0.0) { 
-      // use wheel speed to calculate heading angle.
-      // CCW is possitive heading angle, then wheel speed R>L
-      double wheel_diff = wheel_speed[wheel_R]-wheel_speed[wheel_L];
-      //vth = atan(fabs(wheel_diff) / wheel_width) * (wheel_diff/fabs(wheel_diff);  // atan angle * sign
-      //vth = atan2( wheel_diff, wheel_width );
+    // if (_use_visual_heading == 1.0) { 
+    //   // using visual heading.
+    //   delta_th = visual_heading_current_Yaw - visual_heading_last_Yaw;
+    //   th = visual_heading_current_Yaw;
+    //   vth = delta_th / dt;    
+    // } else if (_use_visual_heading == 0.0) { 
+    //   // use wheel speed to calculate heading angle.
+    //   // CCW is possitive heading angle, then wheel speed R>L
+    //   double wheel_diff = wheel_speed[wheel_R]-wheel_speed[wheel_L];
+    //   //vth = atan(fabs(wheel_diff) / wheel_width) * (wheel_diff/fabs(wheel_diff);  // atan angle * sign
+    //   //vth = atan2( wheel_diff, wheel_width );
 
-      // when angle is small enough tan(t) ~= t
-      // http://www.wolframalpha.com/input/?i=plot+y%3D+tan%28x%29+and+y%3Dx+%28x+from+-1+to+1%29
-      vth = wheel_diff / wheel_width;
-      delta_th = vth * dt;
-      th += delta_th;
+    //   // when angle is small enough tan(t) ~= t
+    //   // http://www.wolframalpha.com/input/?i=plot+y%3D+tan%28x%29+and+y%3Dx+%28x+from+-1+to+1%29
+    //   vth = wheel_diff / wheel_width;
+    //   delta_th = vth * dt;
+    //   th += delta_th;
 
-      sprintf (ros_info_str, "wheel_diff = %f, \t wheel_diff / wheel_width = %f.", wheel_diff, (wheel_diff / wheel_width));
-      ROS_INFO ("[ML]%s", ros_info_str);
+    //   sprintf (ros_info_str, "wheel_diff = %f, \t wheel_diff / wheel_width = %f.", wheel_diff, (wheel_diff / wheel_width));
+    //   ROS_INFO ("[ML]%s", ros_info_str);
 
+
+    // } else {
+    //   ROS_INFO ("[ML]rosparam <use_visual_heading> setup incorrectly! (should be 0.0 or 1.0)");
+    // }
+
+    // Merge two theta source
+    //_use_visual_heading == 1.0) 
+    // using visual heading.
+    vis_delta_th = visual_heading_current_Yaw - visual_heading_last_Yaw;
+    vis_th = visual_heading_current_Yaw;
+    vis_vth = vis_delta_th / dt;    
+  
+    //_use_visual_heading == 0.0 
+    // use wheel speed to calculate heading angle.
+    // CCW is possitive heading angle, then wheel speed R>L
+    double wheel_diff = wheel_speed[wheel_R]-wheel_speed[wheel_L];
+
+    // when angle is small enough tan(t) ~= t
+    // http://www.wolframalpha.com/input/?i=plot+y%3D+tan%28x%29+and+y%3Dx+%28x+from+-1+to+1%29
+    whe_vth = wheel_diff / wheel_width;
+    whe_delta_th = whe_vth * dt;
+    whe_th += whe_delta_th;
+
+    if ((0.0<=_use_visual_heading) && (_use_visual_heading<=1.0)) {
+      vth = vis_vth*_use_visual_heading + whe_vth * (1-_use_visual_heading);
+      delta_th = vis_delta_th*_use_visual_heading + whe_delta_th * (1-_use_visual_heading);
+      th = vis_th*_use_visual_heading + whe_th * (1-_use_visual_heading);
+
+      sprintf (ros_info_str, "vth = %f.\tdelta_th= %f,\tth=%f.", vis_vth, vis_delta_th, vis_th);
+      ROS_INFO ("[ML] V : %s", ros_info_str);
+
+      sprintf (ros_info_str, "vth = %f.\tdelta_th= %f,\tth=%f.", whe_vth, whe_delta_th, whe_th);
+      ROS_INFO ("[ML] W : %s", ros_info_str);
+
+      sprintf (ros_info_str, "vth = %f.\tdelta_th= %f,\tth=%f.", vth, delta_th, th);
+      ROS_INFO ("[ML] F : %s", ros_info_str);
 
     } else {
-      ROS_INFO ("[ML]rosparam <use_visual_heading> setup incorrectly! (should be 0.0 or 1.0)");
+      ROS_INFO ("[ML]rosparam <use_visual_heading> input incorrectly! (should between 0.0 or 1.0)");
     }
-    
+
+
+
+
     vx = v_linear * sin (vth)* (-1);
     vy = v_linear * cos (vth);
 

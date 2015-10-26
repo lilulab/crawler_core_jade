@@ -3,7 +3,7 @@
     <!-- bool/int/float/double/string  -->
 
     <!-- if using visual heading then 1.0, if not 0.0 -->
-    <param name="use_visual_heading" type="double" value="1.0" />
+    <param name="use_visual_heading" type="double" value="0.8" />
     <!-- <param name="use_visual_heading" type="double" value="1.0" /> -->
  
 
