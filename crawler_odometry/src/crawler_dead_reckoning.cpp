@@ -123,7 +123,7 @@ int main(int argc, char** argv){
 
 
   ros::Publisher odom_pub = n.advertise<nav_msgs::Odometry>("odom", 50);
-  ros::Publisher pose_pub = n.advertise<geometry_msgs::TwistStamped>("crawler/pose", 50);
+  ros::Publisher pose_pub = n.advertise<geometry_msgs::TwistStamped>("crawler/dead_reckoning_pose", 10);
   ros::Publisher crawler_vis_pub = n.advertise<visualization_msgs::Marker>( "pose_rviz_marker", 0 );
   ros::Publisher wingbay_vis_pub = n.advertise<visualization_msgs::Marker>( "wingbayrviz_marker", 0 );
 
